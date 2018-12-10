@@ -19,60 +19,97 @@ print("Starting script")
 user = todoist.login(USER, PASS)
 print("Finished setting up todoist login")
 
+##########################
+# Get tasks and projects #
+##########################
+
 due_tasks = user.get_project(sys.argv[1]).get_tasks()
 inbox_tasks = user.get_project("Inbox-tasks")
 inbox_flashcards = user.get_project("Inbox-flashcards")
 inbox_process_improvements = user.get_project("Inbox-process-improvements")
 inbox_considerations = user.get_project("Inbox-considerations")
 
-def spawn_process_task(task, project):
-    threading.Thread(target=process_task, args=(task, project)).start()
-    l.info("Spawning process to add {} to {}".format(task.content, project.name))
-
-def process_task(task, project):
-    l.info("Processing {}".format(task.content))
-    if task.content[1] == ":":
-        task.content=task.content[3:]
-        task.update()
-        l.info("{} stripped".format(task.content))
-
-    task.move(project)
-    l.info("Finished processing '{}', \nmoved to {}".format(task.content, project.name))
+#####################
+# Utility functions #
+#####################
 
 def task_to_project(task, project):
     task.move(project)
+    l.info("{} received '{}'").format(project.name, task.content)
 
-def categorize(task):
-    if task.content[0:3] == "F: ": #If flashcard
-        spawn_process_task(task, inbox_flashcards)
-    elif task.content[0:3] == "I: ": #If process improvement
-        spawn_process_task(task, inbox_process_improvements)
-    elif task.content[0:3] == "C: ": #If consideration
-        spawn_process_task(task, inbox_considerations)
-    else:
-        spawn_process_task(task, inbox_tasks)
+def spawn_process(function, args):
+    """
+        Spawns a new process.
+        Takes 2 args:
+            function to run
+            args [tuple]
+    """
+    threading.Thread(target=function, args=args).start()
+    l.info("Spawning process with function: {}\n args: {}".format(function, args))
+
+####################
+# Script functions #
+####################
+
+def process_no_prefix(task):
+    task_string = task.content
+    project = None
+    response = input("\n    Date?\n    @context? [@f/@h/@b/@c/@a]\n\n\n    ")
+
+    contexts = {
+        "@focus",
+        "@home",
+        "@børglum",
+        "@computer",
+        "@anywhere"
+    }
+
+    for context in contexts:
+        if context[0:2] in response:
+            task_string += " " + context
+            task_string +=" #Actionable"
+
+    user.quick_add(task_string)
+    task.delete()
+
+def process_prefixed(task):
+    project = None
+
+    if task.content[0] == "F": #If flashcard
+        project = inbox_flashcards
+    elif task.content[0] == "I": #If process improvement
+        project = inbox_process_improvements
+    elif task.content[0] == "C": #If consideration
+        project = inbox_considerations
+
+    task.content = task.content[3:]
+    task.update()
+    spawn_process_task(task_to_project, (task, project))
 
 for task in due_tasks:
     os.system("clear")
     print("\n" * 2)
     print("    " + task.content)
 
-    text = input("\n    [D]elete? [I]mportant? [N]ecessary?\n\n\n    ")
+    response = input("\n    [D]elete?/[I]mportant?/[N]ecessary? ([F/I/C])\n\n\n    ")
 
-    if text == "I":
-        categorize(task)
-        continue
-    elif text == "N":
-        categorize(task)
+    if response[0] == ("I" or "N"):
+        if task.content[1:3] == ": ": ## If contains colon, categorize by prefix
+            process_prefixed(task)
+        if len(response) == "2": ## Categorise as sub-type if necessary
+            if response[1] == "F":
+                spawn_process_task(task_to_project, (task, inbox_flashcards))
+            elif response[1] == "I":
+                spawn_process_task(task_to_project, (task, inbox_process_improvements))
+            elif response[1] == "C":
+                spawn_process_task(task_to_project, (task, inbox_considerations))
+        else:
+            process_no_prefix(task)
+
     elif text == "D":
         threading.Thread(target=task.delete).start()
         l.info("Deleted {}".format(task.content))
-    elif text == ("IF" or "NF"):
-        spawn_process_task(task, inbox_flashcards)
-    elif text == ("II" or "NI"):
-        spawn_process_task(task, inbox_process_improvements)
-    elif text == ("IC" or "NC"):
-        spawn_process_task(task, inbox_considerations)
+
     else:
         l.ERROR("Incorrect type")
 
