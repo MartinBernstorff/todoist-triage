@@ -27,17 +27,17 @@ inbox_considerations = user.get_project("Inbox-considerations")
 
 def spawn_process_task(task, project):
     threading.Thread(target=process_task, args=(task, project)).start()
+    l.info("Spawning process to add {} to {}".format(task.content, project.name))
 
 def process_task(task, project):
+    l.info("Processing {}".format(task.content))
     if task.content[1] == ":":
         task.content=task.content[3:]
         task.update()
         l.info("{} stripped".format(task.content))
 
-
-
     task.move(project)
-    l.info("{} moved to {}".format(task.content, project.name))
+    l.info("Finished processing '{}', \nmoved to {}".format(task.content, project.name))
 
 def task_to_project(task, project):
     task.move(project)
@@ -54,10 +54,10 @@ def categorize(task):
 
 for task in due_tasks:
     os.system("clear")
-    print("\n" * 3)
-    print(task.content)
+    print("\n" * 2)
+    print("    " + task.content)
 
-    text = input("\n[I]mportant? [N]ecessary? [D]elete? \n\n\n")
+    text = input("\n    [D]elete? [I]mportant? [N]ecessary?\n\n\n    ")
 
     if text == "I":
         categorize(task)
