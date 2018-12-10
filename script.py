@@ -5,6 +5,7 @@ from credentials import USER, PASS
 from pynput import keyboard
 import os
 import sys
+import re
 import threading
 
 #Setup loggging
@@ -35,7 +36,7 @@ inbox_considerations = user.get_project("Inbox-considerations")
 
 def task_to_project(task, project):
     task.move(project)
-    l.info("{} received '{}'").format(project.name, task.content)
+    l.info("{} received '{}'".format(project.name, task.content))
 
 def spawn_process(function, args):
     """
@@ -52,27 +53,51 @@ def spawn_process(function, args):
 ####################
 
 def process_no_prefix(task):
+    l.info("Processing without prefix")
     task_string = task.content
     project = None
-    response = input("\n    Date?\n    @context? [@f/@h/@b/@c/@a]\n\n\n    ")
+    response = input("\n    Date? [+t/+xd/+xw/+xm/+xy]\n    @context? [@f/@h/@b/@c/@a]\n\n\n    ")
 
     contexts = {
-        "@focus",
+        "@fokus",
         "@home",
         "@børglum",
         "@computer",
         "@anywhere"
     }
 
-    for context in contexts:
+    for context in contexts: # Check for context matches
         if context[0:2] in response:
             task_string += " " + context
             task_string +=" #Actionable"
 
+    if "+t" in response:
+        task_string += " today"
+
+    time_units = [
+        "day",
+        "week",
+        "month",
+        "year"
+    ]
+
+    for time_unit in time_units:
+        if re.search("\+[\d]*" + time_unit[0], response):
+            digit_matches = re.findall("[\d]*", response)
+            digits = ""
+            for digit in digit_matches:
+                if len(digit) is not 0:
+                    digits += digit
+
+            task_string += " +" + digits + time_unit
+            l.info("Date matched: ".format(task_string))
+
+    l.info("Adding: \n'{}'".format(task_string))
     user.quick_add(task_string)
     task.delete()
 
 def process_prefixed(task):
+    l.info("Processing as prefixed")
     project = None
 
     if task.content[0] == "F": #If flashcard
@@ -84,7 +109,7 @@ def process_prefixed(task):
 
     task.content = task.content[3:]
     task.update()
-    spawn_process_task(task_to_project, (task, project))
+    spawn_process(task_to_project, (task, project))
 
 for task in due_tasks:
     os.system("clear")
@@ -92,17 +117,21 @@ for task in due_tasks:
     print("    " + task.content)
 
     response = input("\n    [D]elete?/[I]mportant?/[N]ecessary? ([F/I/C])\n\n\n    ")
+    l.info("Response length {}".format(len(response)))
 
     if response[0] == ("I" or "N"):
+        l.info("Processing as {}".format(response[0]))
+
         if task.content[1:3] == ": ": ## If contains colon, categorize by prefix
             process_prefixed(task)
-        if len(response) == "2": ## Categorise as sub-type if necessary
+        elif len(response) == 2: ## Categorise as sub-type if necessary
+            l.info("Processing as sub-type")
             if response[1] == "F":
-                spawn_process_task(task_to_project, (task, inbox_flashcards))
+                spawn_process(task_to_project, (task, inbox_flashcards))
             elif response[1] == "I":
-                spawn_process_task(task_to_project, (task, inbox_process_improvements))
+                spawn_process(task_to_project, (task, inbox_process_improvements))
             elif response[1] == "C":
-                spawn_process_task(task_to_project, (task, inbox_considerations))
+                spawn_process(task_to_project, (task, inbox_considerations))
         else:
             process_no_prefix(task)
 
