@@ -92,6 +92,9 @@ def process_no_prefix(task):
             task_string += " +" + digits + time_unit
             l.info("Date matched: ".format(task_string))
 
+    if "#" not in task_string:
+        task_string += " #Inbox-tasks"
+
     l.info("Adding: \n'{}'".format(task_string))
     user.quick_add(task_string)
     task.delete()
@@ -111,12 +114,19 @@ def process_prefixed(task):
     task.update()
     spawn_process(task_to_project, (task, project))
 
-for task in due_tasks:
-    os.system("clear")
-    print("\n" * 2)
-    print("    " + task.content)
+i = 0
 
-    response = input("\n    [D]elete?/[I]mportant?/[N]ecessary? ([F/I/C])\n\n\n    ")
+for task in due_tasks:
+    if task.due_date_utc is not None: # No due_date handling implemented, if task has due date, move and skip
+        task_to_project(task, inbox_tasks)
+        continue
+
+    os.system("clear")
+    i += 1
+    print("\n" * 1)
+    print("    " + "[{}/{}]: ".format(i, len(due_tasks)) + task.content)
+
+    response = input("\n     [D]elete?/[I]mportant?/[N]ecessary? ([F/I/C]) \n\n\n   ")
     l.info("Response length {}".format(len(response)))
 
     if response[0] == ("I" or "N"):
@@ -135,7 +145,7 @@ for task in due_tasks:
         else:
             process_no_prefix(task)
 
-    elif text == "D":
+    elif response == "D":
         threading.Thread(target=task.delete).start()
         l.info("Deleted {}".format(task.content))
 
