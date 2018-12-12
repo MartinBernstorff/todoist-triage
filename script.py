@@ -114,6 +114,20 @@ def process_prefixed(task):
     task.update()
     spawn_process(task_to_project, (task, project))
 
+def process_suffixed(task):
+    l.info("Processing as suffixed")
+    project = None
+
+    if task.content[-2:-1] == "I": #If process improvement
+        project = inbox_process_improvements
+        task.content = task.content[0:-2]
+    elif task.content[-1:] == "?": #If consideration
+        project = inbox_considerations
+        task.content = task.content[0:-1]
+
+    task.update()
+    spawn_process(task_to_project, (task, project))
+
 i = 0
 
 for task in due_tasks:
@@ -142,6 +156,8 @@ for task in due_tasks:
                 spawn_process(task_to_project, (task, inbox_considerations))
         elif task.content[1:3] == ": ": ## If contains colon, categorize by prefix
             process_prefixed(task)
+        elif task.content[-1:] == ":" or task.content[-1:] == "?": ## If contains colon, categorize by prefix
+            process_suffixed(task)
         else:
             process_no_prefix(task)
 
