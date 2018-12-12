@@ -132,9 +132,7 @@ for task in due_tasks:
     if response[0] == ("I" or "N"):
         l.info("Processing as {}".format(response[0]))
 
-        if task.content[1:3] == ": ": ## If contains colon, categorize by prefix
-            process_prefixed(task)
-        elif len(response) == 2: ## Categorise as sub-type if necessary
+        if len(response) == 2: ## Categorise as sub-type if necessary
             l.info("Processing as sub-type")
             if response[1] == "F":
                 spawn_process(task_to_project, (task, inbox_flashcards))
@@ -142,6 +140,8 @@ for task in due_tasks:
                 spawn_process(task_to_project, (task, inbox_process_improvements))
             elif response[1] == "C":
                 spawn_process(task_to_project, (task, inbox_considerations))
+        elif task.content[1:3] == ": ": ## If contains colon, categorize by prefix
+            process_prefixed(task)
         else:
             process_no_prefix(task)
 
