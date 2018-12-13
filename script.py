@@ -41,6 +41,14 @@ def task_to_project(task, project):
 def quick_add_task(task_string):
     user.quick_add(task_string)
 
+def delete_task(task):
+    task.delete()
+
+def update_and_task_to_project(task, project):
+    task.update()
+    task.move(project)
+    l.info("{} received '{}'".format(project.name, task.content))
+
 def spawn_process(function, args):
     """
         Spawns a new process.
@@ -100,7 +108,7 @@ def process_no_prefix(task):
 
     l.info("Adding: \n'{}'".format(task_string))
     spawn_process(quick_add_task, (task_string,))
-    task.delete()
+    spawn_process(delete_task, (task,))
 
 def process_prefixed(task):
     l.info("Processing as prefixed")
@@ -114,8 +122,7 @@ def process_prefixed(task):
         project = inbox_considerations
 
     task.content = task.content[3:]
-    task.update()
-    spawn_process(task_to_project, (task, project))
+    spawn_process(update_and_task_to_project, (task, project))
 
 def process_suffixed(task):
     l.info("Processing as suffixed")
@@ -128,8 +135,7 @@ def process_suffixed(task):
         project = inbox_considerations
         task.content = task.content[0:-1]
 
-    task.update()
-    spawn_process(task_to_project, (task, project))
+    spawn_process(update_and_task_to_project, (task, project))
 
 i = 0
 
