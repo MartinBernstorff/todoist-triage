@@ -38,6 +38,9 @@ def task_to_project(task, project):
     task.move(project)
     l.info("{} received '{}'".format(project.name, task.content))
 
+def quick_add_task(task_string):
+    user.quick_add(task_string)
+
 def spawn_process(function, args):
     """
         Spawns a new process.
@@ -96,7 +99,7 @@ def process_no_prefix(task):
         task_string += " #Inbox-tasks"
 
     l.info("Adding: \n'{}'".format(task_string))
-    user.quick_add(task_string)
+    spawn_process(quick_add_task, (task_string,))
     task.delete()
 
 def process_prefixed(task):
