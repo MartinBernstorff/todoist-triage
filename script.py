@@ -1,12 +1,16 @@
 import logging
 from datetime import datetime
 from pytodoist import todoist
-from credentials import USER, PASS
+from credentials import USER, PASS, AIRTABLE_API_KEY
 from pynput import keyboard
+
+from airtable import Airtable
+from time import sleep
 import os
 import sys
 import re
 import threading
+import time
 
 #Setup loggging
 FORMAT = '%(asctime)-15s, %(levelname)s: %(message)s'
@@ -29,6 +33,8 @@ inbox_tasks = user.get_project("Inbox-tasks")
 inbox_flashcards = user.get_project("Inbox-flashcards")
 inbox_process_improvements = user.get_project("Inbox-process-improvements")
 inbox_considerations = user.get_project("Inbox-considerations")
+
+airtable = Airtable("apphAhOCdt16lulNj", "Process-improvements", api_key=AIRTABLE_API_KEY)
 
 #####################
 # Utility functions #
@@ -62,6 +68,10 @@ def spawn_process(function, args):
 ####################
 # Script functions #
 ####################
+def add_improvement(task):
+    airtable.insert({"Description": task.content,
+                     "Phase": "Incubating"})
+    task.delete()
 
 def process_no_prefix(task):
     l.info("Processing without prefix")
@@ -117,7 +127,9 @@ def process_prefixed(task):
     if task.content[0] == "F": #If flashcard
         project = inbox_flashcards
     elif task.content[0] == "I": #If process improvement
-        project = inbox_process_improvements
+        task.content = task.content[3:]
+        add_improvement(task)
+        return
     elif task.content[0] == "C": #If consideration
         project = inbox_considerations
 
@@ -129,8 +141,9 @@ def process_suffixed(task):
     project = None
 
     if task.content[-2:-1] == "I": #If process improvement
-        project = inbox_process_improvements
         task.content = task.content[0:-2]
+        add_improvement(task)
+        return
     elif task.content[-1:] == "?": #If consideration
         project = inbox_considerations
         task.content = task.content[0:-1]
@@ -140,19 +153,25 @@ def process_suffixed(task):
 i = 0
 
 for task in due_tasks:
+    i += 1
     if task.due_date_utc is not None: # No due_date handling implemented, if task has due date, move and skip
         task_to_project(task, inbox_tasks)
         continue
+    elif task.content[0:3] == "F: ": # If flashcard, just send straight to flashcards. Pruning can happen later.
+        process_prefixed(task)
+        time.sleep(0.3)
+        continue
 
     os.system("clear")
-    i += 1
     print("\n" * 1)
     print("    " + "[{}/{}]: ".format(i, len(due_tasks)) + task.content)
 
-    response = input("\n     [D]elete?/[I]mportant?/[N]ecessary? ([F/I/C]) \n\n\n   ")
+    response = ""
+    while response == "":
+        response = input("\n     [D]elete?/[I]mportant?/[N]ecessary? ([F/I/C]) \n\n\n   ")
     l.info("Response length {}".format(len(response)))
 
-    if response[0] == ("I" or "N"):
+    if response[0] in ("I", "N"):
         l.info("Processing as {}".format(response[0]))
 
         if len(response) == 2: ## Categorise as sub-type if necessary
@@ -160,7 +179,7 @@ for task in due_tasks:
             if response[1] == "F":
                 spawn_process(task_to_project, (task, inbox_flashcards))
             elif response[1] == "I":
-                spawn_process(task_to_project, (task, inbox_process_improvements))
+                spawn_process(add_improvement, (task,))
             elif response[1] == "C":
                 spawn_process(task_to_project, (task, inbox_considerations))
         elif task.content[1:3] == ": ": ## If contains colon, categorize by prefix
@@ -175,6 +194,6 @@ for task in due_tasks:
         l.info("Deleted {}".format(task.content))
 
     else:
-        l.ERROR("Incorrect type")
+        l.critical("Incorrect type")
 
 os.system("clear")
