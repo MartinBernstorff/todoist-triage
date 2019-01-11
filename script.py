@@ -154,10 +154,17 @@ i = 0
 
 for task in due_tasks:
     i += 1
+    if len(task.get_notes()) != 1:
+        l.info("{} has note(s), skipping").format(task.content)
+        continue
+
     if task.due_date_utc is not None: # No due_date handling implemented, if task has due date, move and skip
+        l.info("{} has a due date, skipping").format(task.content)
         task_to_project(task, inbox_tasks)
         continue
+
     elif task.content[0:3] == "F: ": # If flashcard, just send straight to flashcards. Pruning can happen later.
+        l.info("{} is a flashcard, moving").format(task.content)
         process_prefixed(task)
         time.sleep(0.3)
         continue
